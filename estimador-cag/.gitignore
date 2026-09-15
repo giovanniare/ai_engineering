@@ -6,6 +6,4 @@ __pycache__/
 .pytest_cache/
 dist/
 *.egg-info/
-.claude
-.github/
-
+.claude/
