@@ -1,0 +1,30 @@
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field
+
+from app.services.llm_service import generate_estimation
+
+router = APIRouter(tags=["estimations"])
+
+
+class EstimationRequest(BaseModel):
+    transcription: str = Field(..., min_length=1, description="Texto de la transcripcion de la reunion")
+
+
+class EstimationResponse(BaseModel):
+    estimation: str
+    model: str
+    provider: str
+
+
+@router.post("/estimate", response_model=EstimationResponse)
+def estimate(request: EstimationRequest) -> EstimationResponse:
+    try:
+        result = generate_estimation(request.transcription)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"Error llamando al LLM: {exc}") from exc
+
+    return EstimationResponse(
+        estimation=result.estimation,
+        model=result.model,
+        provider=result.provider,
+    )

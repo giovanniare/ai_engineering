@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync --group dev
+
+      - name: Run test suite (structure + API, LLM mocked)
+        run: uv run pytest -v
+
+      - name: Smoke test — boot the real server
+        run: |
+          uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 &
+          for i in $(seq 1 20); do
+            if curl -sf http://127.0.0.1:8000/health > /dev/null; then
+              echo "Service is up"
+              break
+            fi
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:8000/health
+          echo
+          curl -sf http://127.0.0.1:8000/docs > /dev/null && echo "Swagger docs reachable"
+          curl -sf http://127.0.0.1:8000/openapi.json > /dev/null && echo "OpenAPI schema reachable"
